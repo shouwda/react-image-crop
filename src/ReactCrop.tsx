@@ -91,6 +91,7 @@ export interface ReactCropProps {
 export interface ReactCropState {
   cropIsActive: boolean
   newCropIsBeingDrawn: boolean
+  hasComponentRef: boolean
 }
 
 export class ReactCrop extends PureComponent<ReactCropProps, ReactCropState> {
@@ -141,6 +142,7 @@ export class ReactCrop extends PureComponent<ReactCropProps, ReactCropState> {
   state: ReactCropState = {
     cropIsActive: false,
     newCropIsBeingDrawn: false,
+    hasComponentRef:false
   }
 
   // We unfortunately get the bounding box every time as x+y changes
@@ -154,7 +156,22 @@ export class ReactCrop extends PureComponent<ReactCropProps, ReactCropState> {
     return { x, y, width, height }
   }
 
-  componentDidUpdate(prevProps: ReactCropProps) {
+  componentDidMount() {
+    if (!this.resizeObserver) {
+        this.resizeObserver = new ResizeObserver(()=>{
+          const { crop, onComplete } = this.props
+          if (onComplete && crop) {
+            const { width, height } = this.getBox()
+            if (width && height) {
+              onComplete(convertToPixelCrop(crop, width, height), convertToPercentCrop(crop, width, height))
+            }
+          }
+
+        })
+    }
+  }
+
+  componentDidUpdate(prevProps: ReactCropProps, prevState: ReactCropState) {
     const { crop, onComplete } = this.props
 
     // Useful for when programatically setting a new
@@ -163,6 +180,13 @@ export class ReactCrop extends PureComponent<ReactCropProps, ReactCropState> {
       const { width, height } = this.getBox()
       if (width && height) {
         onComplete(convertToPixelCrop(crop, width, height), convertToPercentCrop(crop, width, height))
+      }
+    }
+
+    if (this.componentRef && this.componentRef.current && this.resizeObserver) {
+      if(!this.state.hasComponentRef){
+        this.setState({hasComponentRef:true});
+        this.resizeObserver.observe(this.componentRef.current)
       }
     }
   }
